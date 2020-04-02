@@ -26,8 +26,8 @@ void get_initial_st(int *);
 void get_transition_table(TrTablePointer, Sym *, int);
 void get_program_name(char *);
 void debug_info(Sym *, int, FinalSt *, int, TrTablePointer, char *);
-void gen_fn(TrTablePointer, Sym *, FinalSt *, int, char *);
-void gen_goto(TrTablePointer, Sym *, FinalSt *, int, char *);
+void gen_fn(TrTablePointer, Sym *, FinalSt *, int, int, char *);
+void gen_goto(TrTablePointer, Sym *, FinalSt *, int, int, char *);
 
 int main(void) {
   Sym sym;
@@ -59,10 +59,10 @@ int main(void) {
       get_program_name(program_name);
       break;
     case '6':
-      gen_fn(trTable, &sym, &finalSt, st_amount, program_name);
+      gen_fn(trTable, &sym, &finalSt, initial_st, st_amount, program_name);
       break;
     case '7':
-      gen_goto(trTable, &sym, &finalSt, st_amount, program_name);
+      gen_goto(trTable, &sym, &finalSt, initial_st, st_amount, program_name);
       break;
     case '8':
       debug_info(&sym, st_amount, &finalSt, initial_st, trTable, program_name);
@@ -251,7 +251,7 @@ void gen_state_body(TrTablePointer trTable, Sym *sym, FinalSt *fst, FILE *f, int
   fprintf(f, "\t}\n");
 }
 
-void gen_fn(TrTablePointer trTable, Sym * sym, FinalSt *fst, int st_amount, char *program_name)
+void gen_fn(TrTablePointer trTable, Sym * sym, FinalSt *fst, int initial_st, int st_amount, char *program_name)
 {
   FILE *f = fopen(program_name, "w");
   fprintf(f, "#include <stdio.h>\n");
@@ -273,7 +273,7 @@ void gen_fn(TrTablePointer trTable, Sym * sym, FinalSt *fst, int st_amount, char
   fprintf(f, "{\n");
   fprintf(f, "\tprintf(\"Input: \");\n");
   fprintf(f, "\tfgets(input, INPUT_LENGTH, stdin);\n");
-  fprintf(f, "\te0();\n");
+  fprintf(f, "\te%d();\n", initial_st);
   fprintf(f, "}\n");
   fprintf(f, "\n");
   fprintf(f, "void aceita()\n");
@@ -299,7 +299,7 @@ void gen_fn(TrTablePointer trTable, Sym * sym, FinalSt *fst, int st_amount, char
   }
 }
 
-void gen_goto(TrTablePointer trTable, Sym * sym, FinalSt *fst, int st_amount, char *program_name)
+void gen_goto(TrTablePointer trTable, Sym * sym, FinalSt *fst, int initial_st, int st_amount, char *program_name)
 {
   FILE *f = fopen(program_name, "w");
   fprintf(f, "#include <stdio.h>\n");
@@ -315,7 +315,7 @@ void gen_goto(TrTablePointer trTable, Sym * sym, FinalSt *fst, int st_amount, ch
   fprintf(f, "{\n");
   fprintf(f, "\tprintf(\"Input: \");\n");
   fprintf(f, "\tfgets(input, INPUT_LENGTH, stdin);\n");
-  fprintf(f, "\tgoto e0;\n");
+  fprintf(f, "\tgoto e%d;\n", initial_st);
   fprintf(f, "\n");
   fprintf(f, "aceita:\n");
   fprintf(f, "\tprintf(\"Input aceito\\n\");\n");
