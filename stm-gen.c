@@ -26,8 +26,8 @@ void get_initial_st(int *);
 void get_transition_table(TrTablePointer, Sym *, int);
 void get_program_name(char *);
 void debug_info(Sym *, int, FinalSt *, int, TrTablePointer, char *);
-void gen_fn(TrTablePointer, Sym *, FinalSt *, int);
-void gen_goto(TrTablePointer, Sym *, FinalSt *, int);
+void gen_fn(TrTablePointer, Sym *, FinalSt *, int, char *);
+void gen_goto(TrTablePointer, Sym *, FinalSt *, int, char *);
 
 int main(void) {
   Sym sym;
@@ -59,10 +59,10 @@ int main(void) {
       get_program_name(program_name);
       break;
     case '6':
-      gen_fn(trTable, &sym, &finalSt, st_amount);
+      gen_fn(trTable, &sym, &finalSt, st_amount, program_name);
       break;
     case '7':
-      gen_goto(trTable, &sym, &finalSt, st_amount);
+      gen_goto(trTable, &sym, &finalSt, st_amount, program_name);
       break;
     case '8':
       debug_info(&sym, st_amount, &finalSt, initial_st, trTable, program_name);
@@ -202,13 +202,13 @@ void debug_info(Sym *sym, int st_amount, FinalSt *finalSt, int initial_st, TrTab
   printf("Nome do programa: %s\n\n", name);
 }
 
-void gen_helper(int *dirty)
+void gen_helper(int *dirty, FILE *f)
 {
   if (!*dirty) {
     *dirty = 1;
-    printf("\tif (");
+    fprintf(f, "\tif (");
   } else {
-    printf("else if (");
+    fprintf(f, "else if (");
   }
 }
 
@@ -216,120 +216,124 @@ void gen_helper(int *dirty)
  * mode == 0 -> fn
  * mode == 1 -> goto
 */
-void gen_state_body(TrTablePointer trTable, Sym *sym, FinalSt *fst, int state, int mode)
+void gen_state_body(TrTablePointer trTable, Sym *sym, FinalSt *fst, FILE *f, int state, int mode)
 {
-  printf("\tcursor++;\n");
+  fprintf(f, "\tcursor++;\n");
 
   int dirty = 0;
   for (int j = 0; j < sym->amount; j++) {
     int next_st = trTable[state][j];
     if (next_st >= 0) {
-      gen_helper(&dirty);
-      printf("input[cursor] == '%c') {\n", sym->list[j]);
+      gen_helper(&dirty, f);
+      fprintf(f, "input[cursor] == '%c') {\n", sym->list[j]);
       mode
-      ? printf("\t\tgoto e%d;\n", next_st)
-      : printf("\t\te%d();\n", next_st);
-      printf("\t} ");
+      ? fprintf(f, "\t\tgoto e%d;\n", next_st)
+      : fprintf(f, "\t\te%d();\n", next_st);
+      fprintf(f, "\t} ");
     }
   }
 
   for (int j = 0; j < fst->amount; j++) {
     if (fst->list[j] == state) {
-      gen_helper(&dirty);
-      printf("input[cursor] == '\\n') {\n");
+      gen_helper(&dirty, f);
+      fprintf(f, "input[cursor] == '\\n') {\n");
       mode
-      ? printf("\t\tgoto aceita;\n")
-      : printf("\t\taceita();\n");
-      printf("\t} ");
+      ? fprintf(f, "\t\tgoto aceita;\n")
+      : fprintf(f, "\t\taceita();\n");
+      fprintf(f, "\t} ");
     }
   }
 
-  printf("else {\n");
+  fprintf(f, "else {\n");
   mode
-  ? printf("\t\tgoto rejeita;\n")
-  : printf("\t\trejeita();\n");
-  printf("\t}\n");
+  ? fprintf(f, "\t\tgoto rejeita;\n")
+  : fprintf(f, "\t\trejeita();\n");
+  fprintf(f, "\t}\n");
 }
 
-void gen_fn(TrTablePointer trTable, Sym * sym, FinalSt *fst, int st_amount)
+void gen_fn(TrTablePointer trTable, Sym * sym, FinalSt *fst, int st_amount, char *program_name)
 {
-  printf("#include <stdio.h>\n");
-  printf("#include <stdlib.h>\n");
-  printf("#include <string.h>\n");
-  printf("\n");
-  printf("#define INPUT_LENGTH 80\n");
-  printf("\n");
-  printf("void aceita(void);\n");
-  printf("void rejeita(void);\n");
+  FILE *f = fopen(program_name, "w");
+  fprintf(f, "#include <stdio.h>\n");
+  fprintf(f, "#include <stdlib.h>\n");
+  fprintf(f, "#include <string.h>\n");
+  fprintf(f, "\n");
+  fprintf(f, "#define INPUT_LENGTH 80\n");
+  fprintf(f, "\n");
+  fprintf(f, "void aceita(void);\n");
+  fprintf(f, "void rejeita(void);\n");
   for (int i = 0; i < st_amount; i++) {
-    printf("void e%d(void);\n", i);
+    fprintf(f, "void e%d(void);\n", i);
   }
-  printf("\n");
-  printf("int cursor = -1;\n");
-  printf("char input[INPUT_LENGTH];\n");
-  printf("\n");
-  printf("int main(void)\n");
-  printf("{\n");
-  printf("\tprintf(\"Input: \");\n");
-  printf("\tfgets(input, INPUT_LENGTH, stdin);\n");
-  printf("\te0();\n");
-  printf("}\n");
-  printf("\n");
-  printf("void aceita()\n");
-  printf("{\n");
-  printf("\tprintf(\"Input aceito\\n\");\n");
-  printf("\texit(EXIT_SUCCESS);\n");
-  printf("}\n");
-  printf("\n");
-  printf("void rejeita()\n");
-  printf("{\n");
-  printf("\tprintf(\"Input rejeitado\\n\");\n");
-  printf("\texit(EXIT_FAILURE);\n");
-  printf("}\n");
-  printf("\n");
+  fprintf(f, "\n");
+  fprintf(f, "int cursor = -1;\n");
+  fprintf(f, "char input[INPUT_LENGTH];\n");
+  fprintf(f, "\n");
+  fprintf(f, "int main(void)\n");
+  fprintf(f, "{\n");
+  fprintf(f, "\tprintf(\"Input: \");\n");
+  fprintf(f, "\tfgets(input, INPUT_LENGTH, stdin);\n");
+  fprintf(f, "\te0();\n");
+  fprintf(f, "}\n");
+  fprintf(f, "\n");
+  fprintf(f, "void aceita()\n");
+  fprintf(f, "{\n");
+  fprintf(f, "\tprintf(\"Input aceito\\n\");\n");
+  fprintf(f, "\texit(EXIT_SUCCESS);\n");
+  fprintf(f, "}\n");
+  fprintf(f, "\n");
+  fprintf(f, "void rejeita()\n");
+  fprintf(f, "{\n");
+  fprintf(f, "\tprintf(\"Input rejeitado\\n\");\n");
+  fprintf(f, "\texit(EXIT_FAILURE);\n");
+  fprintf(f, "}\n");
+  fprintf(f, "\n");
 
   for (int i = 0; i < st_amount; i++) {
-    printf("void e%d()\n", i);
-    printf("{\n");
+    fprintf(f, "void e%d()\n", i);
+    fprintf(f, "{\n");
 
-    gen_state_body(trTable, sym, fst, i, 0);
+    gen_state_body(trTable, sym, fst, f, i, 0);
 
-    printf("}\n\n");
+    fprintf(f, "}\n\n");
   }
 }
 
-void gen_goto(TrTablePointer trTable, Sym * sym, FinalSt *fst, int st_amount)
+void gen_goto(TrTablePointer trTable, Sym * sym, FinalSt *fst, int st_amount, char *program_name)
 {
-  printf("#include <stdio.h>\n");
-  printf("#include <stdlib.h>\n");
-  printf("#include <string.h>\n");
-  printf("\n");
-  printf("#define INPUT_LENGTH 80\n");
-  printf("\n");
-  printf("int cursor = -1;\n");
-  printf("char input[INPUT_LENGTH];\n");
-  printf("\n");
-  printf("int main(void)\n");
-  printf("{\n");
-  printf("\tprintf(\"Input: \");\n");
-  printf("\tfgets(input, INPUT_LENGTH, stdin);\n");
-  printf("\tgoto e0;\n");
-  printf("\n");
-  printf("aceita:\n");
-  printf("\tprintf(\"Input aceito\\n\");\n");
-  printf("\texit(EXIT_SUCCESS);\n");
-  printf("\n");
-  printf("rejeita:\n");
-  printf("\tprintf(\"Input rejeitado\\n\");\n");
-  printf("\texit(EXIT_FAILURE);\n");
-  printf("\n");
+  FILE *f = fopen(program_name, "w");
+  fprintf(f, "#include <stdio.h>\n");
+  fprintf(f, "#include <stdlib.h>\n");
+  fprintf(f, "#include <string.h>\n");
+  fprintf(f, "\n");
+  fprintf(f, "#define INPUT_LENGTH 80\n");
+  fprintf(f, "\n");
+  fprintf(f, "int cursor = -1;\n");
+  fprintf(f, "char input[INPUT_LENGTH];\n");
+  fprintf(f, "\n");
+  fprintf(f, "int main(void)\n");
+  fprintf(f, "{\n");
+  fprintf(f, "\tprintf(\"Input: \");\n");
+  fprintf(f, "\tfgets(input, INPUT_LENGTH, stdin);\n");
+  fprintf(f, "\tgoto e0;\n");
+  fprintf(f, "\n");
+  fprintf(f, "aceita:\n");
+  fprintf(f, "\tprintf(\"Input aceito\\n\");\n");
+  fprintf(f, "\texit(EXIT_SUCCESS);\n");
+  fprintf(f, "\n");
+  fprintf(f, "rejeita:\n");
+  fprintf(f, "\tprintf(\"Input rejeitado\\n\");\n");
+  fprintf(f, "\texit(EXIT_FAILURE);\n");
+  fprintf(f, "\n");
 
   for (int i = 0; i < st_amount; i++) {
-    printf("e%d:\n", i);
+    fprintf(f, "e%d:\n", i);
 
-    gen_state_body(trTable, sym, fst, i, 1);
+    gen_state_body(trTable, sym, fst, f, i, 1);
 
-    printf("\n");
+    fprintf(f, "\n");
   }
+
+  fprintf(f, "}\n");
 }
 
