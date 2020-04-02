@@ -27,6 +27,7 @@ void get_transition_table(TrTablePointer, Sym *, int);
 void get_program_name(char *);
 void debug_info(Sym *, int, FinalSt *, int, TrTablePointer, char *);
 void gen_fn(TrTablePointer, Sym *, FinalSt *, int);
+void gen_goto(TrTablePointer, Sym *, FinalSt *, int);
 
 int main(void) {
   Sym sym;
@@ -61,7 +62,7 @@ int main(void) {
       gen_fn(trTable, &sym, &finalSt, st_amount);
       break;
     case '7':
-      //gen_goto();
+      gen_goto(trTable, &sym, &finalSt, st_amount);
       break;
     case '8':
       debug_info(&sym, st_amount, &finalSt, initial_st, trTable, program_name);
@@ -211,6 +212,45 @@ void gen_helper(int *dirty)
   }
 }
 
+/*
+ * mode == 0 -> fn
+ * mode == 1 -> goto
+*/
+void gen_state_body(TrTablePointer trTable, Sym *sym, FinalSt *fst, int state, int mode)
+{
+  printf("\tcursor++;\n");
+
+  int dirty = 0;
+  for (int j = 0; j < sym->amount; j++) {
+    int next_st = trTable[state][j];
+    if (next_st >= 0) {
+      gen_helper(&dirty);
+      printf("input[cursor] == '%c') {\n", sym->list[j]);
+      mode
+      ? printf("\t\tgoto e%d;\n", next_st)
+      : printf("\t\te%d();\n", next_st);
+      printf("\t} ");
+    }
+  }
+
+  for (int j = 0; j < fst->amount; j++) {
+    if (fst->list[j] == state) {
+      gen_helper(&dirty);
+      printf("input[cursor] == '\\n') {\n");
+      mode
+      ? printf("\t\tgoto aceita;\n")
+      : printf("\t\taceita();\n");
+      printf("\t} ");
+    }
+  }
+
+  printf("else {\n");
+  mode
+  ? printf("\t\tgoto rejeita;\n")
+  : printf("\t\trejeita();\n");
+  printf("\t}\n");
+}
+
 void gen_fn(TrTablePointer trTable, Sym * sym, FinalSt *fst, int st_amount)
 {
   printf("#include <stdio.h>\n");
@@ -251,32 +291,45 @@ void gen_fn(TrTablePointer trTable, Sym * sym, FinalSt *fst, int st_amount)
   for (int i = 0; i < st_amount; i++) {
     printf("void e%d()\n", i);
     printf("{\n");
-    printf("\tcursor++;\n");
 
-    int dirty = 0;
-    for (int j = 0; j < sym->amount; j++) {
-      int next_st = trTable[i][j];
-      if (next_st >= 0) {
-        gen_helper(&dirty);
-        printf("input[cursor] == '%c') {\n", sym->list[j]);
-        printf("\t\te%d();\n", next_st);
-        printf("\t} ");
-      }
-    }
+    gen_state_body(trTable, sym, fst, i, 0);
 
-    for (int j = 0; j < fst->amount; j++) {
-      if (fst->list[j] == i) {
-        gen_helper(&dirty);
-        printf("input[cursor] == '\\n') {\n");
-        printf("\t\taceita();\n");
-        printf("\t} ");
-      }
-    }
-
-    printf("else {\n");
-    printf("\t\trejeita();\n");
-    printf("\t}\n");
     printf("}\n\n");
+  }
+}
+
+void gen_goto(TrTablePointer trTable, Sym * sym, FinalSt *fst, int st_amount)
+{
+  printf("#include <stdio.h>\n");
+  printf("#include <stdlib.h>\n");
+  printf("#include <string.h>\n");
+  printf("\n");
+  printf("#define INPUT_LENGTH 80\n");
+  printf("\n");
+  printf("int cursor = -1;\n");
+  printf("char input[INPUT_LENGTH];\n");
+  printf("\n");
+  printf("int main(void)\n");
+  printf("{\n");
+  printf("\tprintf(\"Input: \");\n");
+  printf("\tfgets(input, INPUT_LENGTH, stdin);\n");
+  printf("\tgoto e0;\n");
+  printf("\n");
+  printf("aceita:\n");
+  printf("\tprintf(\"Input aceito\\n\");\n");
+  printf("\texit(EXIT_SUCCESS);\n");
+  printf("\n");
+  printf("rejeita:\n");
+  printf("\tprintf(\"Input rejeitado\\n\");\n");
+  printf("\texit(EXIT_FAILURE);\n");
+  printf("\n");
+
+  for (int i = 0; i < st_amount; i++) {
+    printf("e%d:\n", i);
+
+    gen_state_body(trTable, sym, fst, i, 1);
+
+    printf("\n");
   }
 }
 
