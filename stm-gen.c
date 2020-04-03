@@ -218,12 +218,15 @@ void gen_helper(int *dirty, FILE *f)
 */
 void gen_state_body(TrTablePointer trTable, Sym *sym, FinalSt *fst, FILE *f, int state, int mode)
 {
-  fprintf(f, "\tcursor++;\n");
-
   int dirty = 0;
+  int is_final = 0;
+  int has_transitions = 0;
+
+  fprintf(f, "\tcursor++;\n");
   for (int j = 0; j < sym->amount; j++) {
     int next_st = trTable[state][j];
     if (next_st >= 0) {
+      has_transitions = 1;
       gen_helper(&dirty, f);
       fprintf(f, "input[cursor] == '%c') {\n", sym->list[j]);
       mode
@@ -233,8 +236,9 @@ void gen_state_body(TrTablePointer trTable, Sym *sym, FinalSt *fst, FILE *f, int
     }
   }
 
-  for (int j = 0; j < fst->amount; j++) {
+  for (int j = 0; j < fst->amount && !is_final; j++) {
     if (fst->list[j] == state) {
+      is_final = 1;
       gen_helper(&dirty, f);
       fprintf(f, "input[cursor] == '\\n') {\n");
       mode
@@ -244,11 +248,17 @@ void gen_state_body(TrTablePointer trTable, Sym *sym, FinalSt *fst, FILE *f, int
     }
   }
 
-  fprintf(f, "else {\n");
-  mode
-  ? fprintf(f, "\t\tgoto rejeita;\n")
-  : fprintf(f, "\t\trejeita();\n");
-  fprintf(f, "\t}\n");
+  if (!is_final && !has_transitions) {
+    mode
+    ? fprintf(f, "\tgoto rejeita;\n")
+    : fprintf(f, "\trejeita();\n");
+  } else {
+    fprintf(f, "else {\n");
+    mode
+    ? fprintf(f, "\t\tgoto rejeita;\n")
+    : fprintf(f, "\t\trejeita();\n");
+    fprintf(f, "\t}\n");
+  }
 }
 
 void gen_fn(TrTablePointer trTable, Sym * sym, FinalSt *fst, int initial_st, int st_amount, char *program_name)
