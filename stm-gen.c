@@ -38,8 +38,8 @@ int main(void) {
   char c;
   char program_name[80];
 
-  while((c = get_opt()) != 'q') {
-    switch(c) {
+  while ((c = get_opt()) != 'q') {
+    switch (c) {
     case '0':
       get_sym(&sym);
       break;
@@ -307,6 +307,8 @@ void gen_fn(TrTablePointer trTable, Sym * sym, FinalSt *fst, int initial_st, int
 
     fprintf(f, "}\n\n");
   }
+
+  fclose(f);
 }
 
 void gen_goto(TrTablePointer trTable, Sym * sym, FinalSt *fst, int initial_st, int st_amount, char *program_name)
@@ -345,5 +347,6 @@ void gen_goto(TrTablePointer trTable, Sym * sym, FinalSt *fst, int initial_st, i
   }
 
   fprintf(f, "}\n");
+  fclose(f);
 }
 
